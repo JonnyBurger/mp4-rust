@@ -12,6 +12,7 @@ pub struct Mp4Reader<R> {
     pub moov: MoovBox,
     pub moofs: Vec<MoofBox>,
     pub emsgs: Vec<EmsgBox>,
+    pub supports_fast_start: bool,
 
     tracks: HashMap<u32, Mp4Track>,
     size: u64,
@@ -24,6 +25,8 @@ impl<R: Read + Seek> Mp4Reader<R> {
         let mut ftyp = None;
         let mut moov = None;
         let mut moofs = Vec::new();
+        let mut supports_fast_start = false;
+        let mut has_mdat = false;
         let mut emsgs = Vec::new();
 
         let mut current = start;
@@ -52,9 +55,13 @@ impl<R: Read + Seek> Mp4Reader<R> {
                 }
                 BoxType::MdatBox => {
                     skip_box(&mut reader, s)?;
+                    has_mdat = true;
                 }
                 BoxType::MoovBox => {
                     moov = Some(MoovBox::read_box(&mut reader, s)?);
+                    if !has_mdat {
+                        supports_fast_start = true;
+                    }
                 }
                 BoxType::MoofBox => {
                     let moof = MoofBox::read_box(&mut reader, s)?;
@@ -122,6 +129,7 @@ impl<R: Read + Seek> Mp4Reader<R> {
             emsgs,
             size,
             tracks,
+            supports_fast_start,
         })
     }
 
